@@ -267,6 +267,10 @@ class AutoCropApp:
 
         tk.Button(top, text="Analyze", command=self.analyze).pack(side=tk.LEFT, padx=8)
         tk.Button(top, text="Export CSV", command=self.export_csv).pack(side=tk.LEFT, padx=4)
+
+        self.replace_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(top, text="Replace files", variable=self.replace_var).pack(side=tk.LEFT, padx=8)
+
         tk.Button(top, text="Apply Crop", command=self.apply_crop).pack(side=tk.LEFT, padx=4)
 
         mid = tk.Frame(root)
@@ -418,13 +422,18 @@ class AutoCropApp:
             if not rect:
                 continue
             try:
-                outp = save_cropped_fits(p, rect, out_suffix="_cropped")
+                suffix = "" if self.replace_var.get() else "_cropped"
+                outp = save_cropped_fits(p, rect, out_suffix=suffix)
                 ok += 1
             except Exception as e:
                 print(f"[CROP ERROR] {p}: {e}\n{traceback.format_exc()}", file=sys.stderr)
                 err += 1
-        self.status.set(f"Cropped: {ok} files, errors: {err}")
-        messagebox.showinfo("Apply Crop", f"Cropped: {ok} files\nErrors: {err}")
+        mode = "replaced" if self.replace_var.get() else "saved"
+        self.status.set(f"Cropped: {ok} files ({mode}), errors: {err}")
+        messagebox.showinfo(
+            "Apply Crop",
+            f"Cropped: {ok} files ({mode})\nErrors: {err}"
+        )
 
 
 # --------------------------------- main --------------------------------------
