@@ -205,9 +205,11 @@ def load_fits_rgb(path):
 
 def save_cropped_fits(in_path, rect, out_suffix="_cropped"):
     y0, x0, y1, x1 = rect
-    with fits.open(in_path, mode="readonly", memmap=True) as hdul:
-        data = hdul[0].data
-        header = hdul[0].header
+    # Use memmap=False so the FITS file handle is fully released before
+    # potentially overwriting the source file (Windows needs the file closed).
+    with fits.open(in_path, mode="readonly", memmap=False) as hdul:
+        data = np.asarray(hdul[0].data)
+        header = hdul[0].header.copy()
 
     if data.ndim == 2:
         cropped = data[y0:y1, x0:x1]
@@ -267,6 +269,10 @@ class AutoCropApp:
 
         tk.Button(top, text="Analyze", command=self.analyze).pack(side=tk.LEFT, padx=8)
         tk.Button(top, text="Export CSV", command=self.export_csv).pack(side=tk.LEFT, padx=4)
+
+        self.replace_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(top, text="Replace files", variable=self.replace_var).pack(side=tk.LEFT, padx=8)
+
         tk.Button(top, text="Apply Crop", command=self.apply_crop).pack(side=tk.LEFT, padx=4)
 
         mid = tk.Frame(root)
@@ -418,13 +424,18 @@ class AutoCropApp:
             if not rect:
                 continue
             try:
-                outp = save_cropped_fits(p, rect, out_suffix="_cropped")
+                suffix = "" if self.replace_var.get() else "_cropped"
+                outp = save_cropped_fits(p, rect, out_suffix=suffix)
                 ok += 1
             except Exception as e:
                 print(f"[CROP ERROR] {p}: {e}\n{traceback.format_exc()}", file=sys.stderr)
                 err += 1
-        self.status.set(f"Cropped: {ok} files, errors: {err}")
-        messagebox.showinfo("Apply Crop", f"Cropped: {ok} files\nErrors: {err}")
+        mode = "replaced" if self.replace_var.get() else "saved"
+        self.status.set(f"Cropped: {ok} files ({mode}), errors: {err}")
+        messagebox.showinfo(
+            "Apply Crop",
+            f"Cropped: {ok} files ({mode})\nErrors: {err}"
+        )
 
 
 # --------------------------------- main --------------------------------------
