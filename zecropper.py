@@ -205,9 +205,11 @@ def load_fits_rgb(path):
 
 def save_cropped_fits(in_path, rect, out_suffix="_cropped"):
     y0, x0, y1, x1 = rect
-    with fits.open(in_path, mode="readonly", memmap=True) as hdul:
-        data = hdul[0].data
-        header = hdul[0].header
+    # Use memmap=False so the FITS file handle is fully released before
+    # potentially overwriting the source file (Windows needs the file closed).
+    with fits.open(in_path, mode="readonly", memmap=False) as hdul:
+        data = np.asarray(hdul[0].data)
+        header = hdul[0].header.copy()
 
     if data.ndim == 2:
         cropped = data[y0:y1, x0:x1]
